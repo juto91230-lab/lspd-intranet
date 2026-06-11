@@ -1,0 +1,607 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LSPD - Intranet Central</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap">
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+    </style>
+</head>
+<body class="bg-slate-900 text-slate-100 min-h-screen" 
+      x-data="{
+        isLogged: false,
+        identifier: '',
+        password: '',
+        loginError: '',
+        currentTab: 'penal', // Onglet par défaut sur le Code Pénal pour vérification immédiate
+        
+        // Roster LSPD
+        users: [
+          { id: 1, matricule: '39', nom: 'Tim Bradford', grade: 'Chief Of Police'},
+          { id: 2, matricule: 'O-12', nom: 'Jane Smith', grade: 'Officier II', enService: false },
+          { id: 3, matricule: 'S-05', nom: 'Frank Tenpenny', grade: 'Sergent', enService: true },
+          { id: 4, matricule: 'C-99', nom: 'Jimmy De Santa', grade: 'Cadet', enService: false }
+        ],
+        grades: ['Rookie', 'Officier I', 'Officier II', 'Officier III', 'SLO', 'Sergent I', 'Sergent II', 'Lieutenant I', 'Lieutenant II', 'CapitaineI', 'Capitaine II', 'Commandant', 'Deputy Chief ', 'AST Chief' , 'Chef de Police'],
+        searchUser: '',
+        newUser: { matricule: '', nom: '', grade: 'Cadet' },
+        activeModal: null,
+
+        // Base de données des Casiers Judiciaires
+        casiers: [
+          { id: 1, nom: 'De Santa', prenom: 'Jimmy', photoUrl: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=200&h=200&q=80', notes: 'Individu connu pour de légers délits routiers et cambriolage mineur.\n\n[08/06/2026] Interpellation pour refus d\'obtempérer.', dateCreation: '08/06/2026' }
+        ],
+        searchCasier: '',
+        newCasier: { nom: '', prenom: '', photoUrl: '', notes: '' },
+        selectedCasier: null,
+        newNoteText: '',
+
+        // Base de données intégrale du Code Pénal
+        searchPenal: '',
+        codePenal: [
+          { article: 'LC 23103', categorie: 'Délits', infraction: 'Abus de confiance', amende: '1 750 $', prison: '10 u.' },
+          { article: 'LC 23104', categorie: 'Délits', infraction: 'Abus de pouvoir', amende: '8 000 $', prison: '10 u.' },
+          { article: 'LC 23105', categorie: 'Crimes', infraction: 'Agression physique à l\'arme blanche', amende: '20 750 $', prison: '15 u.' },
+          { article: 'LC 23106', categorie: 'Délits', infraction: 'Agression physique à main nue', amende: '4 500 $', prison: '10 u.' },
+          { article: 'LC 23115', categorie: 'Crimes', infraction: 'Agression physique sur agent (LSPD/EMS/GOUV)', amende: '39 500 $', prison: '20 u.' },
+          { article: 'LC 22349b', categorie: 'Délits', infraction: 'Altération de preuve', amende: '3 500 $', prison: '10 u.' },
+          { article: '-', categorie: 'Crimes', infraction: 'Assassinat prémédité', amende: '3 500 000 $', prison: '6 mois' },
+          { article: '-', categorie: 'Crimes', infraction: 'Assaut de bâtiment Gouvernemental', amende: '5 000 000 $', prison: '10 ans' },
+          { article: 'CV.1.108.1', categorie: 'Délits', infraction: 'Association de malfaiteurs', amende: '11 400 $', prison: '10 u.' },
+          { article: 'CV.1.101.1', categorie: 'Délits', infraction: 'Atteinte à la pudeur', amende: '1 350 $', prison: '5 u.' },
+          { article: 'LC 23107', categorie: 'Délits', infraction: 'Atteinte aux morts', amende: '10 250 $', prison: '15 u.' },
+          { article: 'LC 23108', categorie: 'Délits', infraction: 'Attroupement illégal', amende: '2 500 $', prison: '12 u.' },
+          { article: 'LC 23109', categorie: 'Crimes', infraction: 'Blanchiment', amende: '50% de la somme', prison: '2 ans' },
+          { article: 'LC 23110', categorie: 'Délits', infraction: 'Braconnage', amende: '6 500 $', prison: '5 u.' },
+          { article: 'LC 23110', categorie: 'Délits', infraction: 'Braquage d\'ATM', amende: '6 550 $', prison: '15 u.' },
+          { article: 'LC 14600', categorie: 'Crimes', infraction: 'Braquage d\'épicerie', amende: '10 320 $', prison: '20 u.' },
+          { article: 'LC 14601', categorie: 'Crimes', infraction: 'Braquage d\'individu (Arme à feu)', amende: '30 250 $', prison: '20 u.' },
+          { article: 'LC 70', categorie: 'Crimes', infraction: 'Braquage de banque (Pacific)', amende: '1 839 999 $', prison: '60 u.' },
+          { article: 'LC 71', categorie: 'Crimes', infraction: 'Braquage de bijouterie', amende: '1 600 890 $', prison: '45 u.' },
+          { article: 'LC 72', categorie: 'Crimes', infraction: 'Braquage de Fleeca', amende: '420 950 $', prison: '60 u.' },
+          { article: 'LC 69', categorie: 'Délits', infraction: 'Cambriolage', amende: '4 500 $', prison: '10 u.' },
+          { article: 'CV.1.101.2', categorie: 'Délits', infraction: 'Chantage', amende: '2 500 $', prison: '10 u.' },
+          { article: 'CV 1.114b', categorie: 'Routier', infraction: 'Circulation en contre sens', amende: '650 $', prison: '2 u.' },
+          { article: 'LC 23109', categorie: 'Délits', infraction: 'Complicité de délit de fuite', amende: '1 500 $', prison: '5 u.' },
+          { article: 'LC 23109', categorie: 'Délits', infraction: 'Conduite d\'un véhicule volé', amende: '2 500 $', prison: '10 u.' },
+          { article: 'LC 23109', categorie: 'Routier', infraction: 'Conduite dangereuse majeure', amende: '3 500 $', prison: '20 u.' },
+          { article: 'LC23109b', categorie: 'Routier', infraction: 'Conduite dangereuse mineure', amende: '3 050 $', prison: '15 u.' },
+          { article: '23112', categorie: 'Routier', infraction: 'Conduite en état d\'ivresse', amende: '5 000 $', prison: '20 u.' },
+          { article: 'LC 23112', categorie: 'Routier', infraction: 'Conduite sans permis', amende: '4 500 $', prison: '5 u.' },
+          { article: 'LC 5', categorie: 'Routier', infraction: 'Conduite sans port du casque', amende: '1 350 $', prison: '10 u.' },
+          { article: 'LC 5.1', categorie: 'Routier', infraction: 'Conduite sous l\'emprise de stupéfiant', amende: '1 350 $', prison: '25 u.' },
+          { article: 'LC 736', categorie: 'Délits', infraction: 'Coups et blessures sur civils', amende: '6 550 $', prison: '20 u.' },
+          { article: 'LC 602', categorie: 'Routier', infraction: 'Course illégale', amende: '15 500 $', prison: '15 u.' },
+          { article: 'LC 419', categorie: 'Délits', infraction: 'Vol de véhicule', amende: '10 365 $', prison: '15 u.' },
+          { article: 'LC 11', categorie: 'Délits', infraction: 'Défaut de papiers', amende: '3 000 $', prison: '10 u.' },
+          { article: 'LC 314.b', categorie: 'Délits', infraction: 'Dégradation majeure', amende: '3 200 $', prison: '15 u.' },
+          { article: 'LC 314a', categorie: 'Délits', infraction: 'Dégradation mineure', amende: '960 $', prison: '10 u.' },
+          { article: 'LC 148.8', categorie: 'Délits', infraction: 'Délit de fuite', amende: '1 400 $', prison: '15 u.' },
+          { article: 'LC 721', categorie: 'Routier', infraction: 'Dépassement dangereux', amende: '800 $', prison: '5 u.' },
+          { article: 'LC 3', categorie: 'Délits', infraction: 'Destruction de Biens', amende: '1 000 $', prison: '10 u.' },
+          { article: 'LC 721', categorie: 'Délits', infraction: 'Détention ou commerce de données illicites (Dark Web/Twitter)', amende: '20 000 $', prison: '6 u.' },
+          { article: 'LC 3', categorie: 'Crimes', infraction: 'Détournement de Fonds', amende: '75% de la somme', prison: '40 u.' },
+          { article: 'LC 3', categorie: 'Délits', infraction: 'Diffamation / Faux témoignage', amende: '8 000 $', prison: '20 u.' },
+          { article: '-', categorie: 'Délits', infraction: 'Dissimulation de visage', amende: '2 500 $', prison: '10 u.' },
+          { article: 'LC 3', categorie: 'Crimes', infraction: 'Embuscade', amende: '12 500 $', prison: '25 u.' },
+          { article: '-', categorie: 'Délits', infraction: 'Entrave au secours / Forces de l\'Ordre', amende: '10 750 $', prison: '20 u.' },
+          { article: '-', categorie: 'Délits', infraction: 'Escroquerie', amende: '100% de la somme', prison: '25 u.' },
+          { article: 'LC 3', categorie: 'Crimes', infraction: 'Espionnage', amende: '100 000 $', prison: '25 u.' },
+          { article: 'LC 3', categorie: 'Routier', infraction: 'Excès de vitesse majeur', amende: '10 500 $', prison: '5 u.' },
+          { article: 'LC 3', categorie: 'Routier', infraction: 'Excès de vitesse mineur', amende: '5 500 $', prison: '0 u.' },
+          { article: 'LC 3', categorie: 'Crimes', infraction: 'Exhibition d\'arme', amende: '65 500 $', prison: '15 u.' },
+          { article: 'LC 3', categorie: 'Crimes', infraction: 'Fabrication de stupéfiants', amende: '34 500 $', prison: '35 u.' },
+          { article: '-', categorie: 'Délits', infraction: 'Faux appels (canulars)', amende: '2 560 $', prison: '15 u.' },
+          { article: '-', categorie: 'Délits', infraction: 'Vol de Biens', amende: '3 500 $', prison: '5 u.' },
+          { article: '-', categorie: 'Délits', infraction: 'Harcèlement', amende: '13 260 $', prison: '25 u.' },
+          { article: '-', categorie: 'Crimes', infraction: 'Haute trahison', amende: '20 000 000 $', prison: 'A vie / WIPE' },
+          { article: '-', categorie: 'Délits', infraction: 'Incitation à l\'émeute', amende: '25 000 $', prison: '35 u.' },
+          { article: '-', categorie: 'Délits', infraction: 'Incitation à la haine', amende: '3 500 $', prison: '20 u.' },
+          { article: '-', categorie: 'Délits', infraction: 'Incitation au suicide', amende: '16 540 $', prison: '60 u.' },
+          { article: '-', categorie: 'Délits', infraction: 'Injure', amende: '685 $', prison: '10 u.' },
+          { article: '-', categorie: 'Crimes', infraction: 'Intrusion dans une base sécurisée', amende: '50 000 $', prison: '3 jours' },
+          { article: '-', categorie: 'Délits', infraction: 'Ivresse sur la voie publique', amende: '3 200 $', prison: '5 u.' },
+          { article: '-', categorie: 'Délits', infraction: 'Menaces', amende: '1 500 $', prison: '10 u.' },
+          { article: 'LC 7', categorie: 'Délits', infraction: 'Menaces envers agents (LSPD/GOUV/EMS)', amende: '12 685 $', prison: '15 u.' },
+          { article: '-', categorie: 'Crimes', infraction: 'Homicide volontaire', amende: '380 000 $', prison: '30 ans' },
+          { article: '-', categorie: 'Délits', infraction: 'Mise en danger d\'autrui', amende: '3 750 $', prison: '15 u.' },
+          { article: 'LC 73', categorie: 'Délits', infraction: 'Mise en péril de la vie d\'autrui', amende: '1 750 $', prison: '20 u.' },
+          { article: '-', categorie: 'Délits', infraction: 'Non assistance à personne en danger', amende: '885 $', prison: '10 u.' },
+          { article: 'LC 427', categorie: 'Délits', infraction: 'Non paiement de l\'amende', amende: '50% de la somme', prison: '15 u.' },
+          { article: '-', categorie: 'Routier', infraction: 'Non respect Feu rouge / Stop', amende: '450 $', prison: '5 u.' },
+          { article: 'LC 10', categorie: 'Délits', infraction: 'Obstruction à la justice', amende: '1 500 $', prison: '15 u.' },
+          { article: '-', categorie: 'Délits', infraction: 'Outrage à agent', amende: '5 580 $', prison: '5 u.' },
+          { article: '-', categorie: 'Délits', infraction: 'Outrage à la cour', amende: '15 000 $', prison: '15 u.' },
+          { article: '-', categorie: 'Délits', infraction: 'Parjure', amende: '7 500 $', prison: '10 u.' },
+          { article: 'CV.1.112', categorie: 'Routier', infraction: 'Phares éteints la nuit', amende: '850 $', prison: '5 u.' },
+          { article: 'LC 14602', categorie: 'Crimes', infraction: 'Possession d\'arme sans PPA', amende: '38 750 $', prison: '15 u.' },
+          { article: 'LC 417.1', categorie: 'Délits', infraction: 'Possession de plus de deux chargeurs', amende: '12 500 $', prison: '5 u.' },
+          { article: '-', categorie: 'Délits', infraction: 'Possession d\'argent sale', amende: '50% de la somme', prison: '15 u.' },
+          { article: '-', categorie: 'Crimes', infraction: 'Prise d\'otage sur agent (LSPD/GOUV/EMS)', amende: '190 998 $', prison: 'PRISON 2h' },
+          { article: '-', categorie: 'Crimes', infraction: 'Prise d\'otage sur Civil', amende: '120 500 $', prison: '40 u.' },
+          { article: '-', categorie: 'Délits', infraction: 'Propos racistes', amende: '3 250 $', prison: '25 u.' },
+          { article: '-', categorie: 'Délits', infraction: 'Provocation envers LSPD/GOUV/EMS', amende: '6 350 $', prison: '20 u.' },
+          { article: '-', categorie: 'Crimes', infraction: 'Proxénétisme', amende: '12 750 $', prison: '5 u.' },
+          { article: 'LC 103.1', categorie: 'Délits', infraction: 'Racket', amende: '6 500 $', prison: '15 u.' },
+          { article: 'LC 103.2', categorie: 'Délits', infraction: 'Refus d\'identification', amende: '850 $', prison: '25 u.' },
+          { article: 'LC 12.1', categorie: 'Délits', infraction: 'Refus d\'obtempérer', amende: '2 750 $', prison: '20 u.' },
+          { article: 'LC 23120', categorie: 'Crimes', infraction: 'Séquestration sur agent (LSPD/GOUV/EMS)', amende: '25 000 $', prison: '40 u.' },
+          { article: 'LC 149.1', categorie: 'Crimes', infraction: 'Séquestration sur civil', amende: '17 500 $', prison: '25 u.' },
+          { article: 'LC 149.2', categorie: 'Routier', infraction: 'Stationnement gênant', amende: '1 050 $', prison: '5 u.' },
+          { article: 'LC 428', categorie: 'Crimes', infraction: 'Tentative d\'évasion (Poste, Prison...)', amende: '37 000 $', prison: '35 u EN +' },
+          { article: 'LC 185', categorie: 'Crimes', infraction: 'Tentative de corruption', amende: '18 950 $', prison: '30 u.' },
+          { article: 'LC 104.1', categorie: 'Délits', infraction: 'Non respect d\'une décision de justice', amende: '280 500 $', prison: 'XXX' },
+          { article: 'LC 75', categorie: 'Crimes', infraction: 'Terrorisme', amende: '50 700 000 $', prison: 'PRISON/WIPE' },
+          { article: '-', categorie: 'Crimes', infraction: 'Tir sur agent (LSPD/GOUV/EMS)', amende: '36 000 $', prison: '25 u.' },
+          { article: '-', categorie: 'Crimes', infraction: 'Tir sur Civil', amende: '13 000 $', prison: '25 u.' },
+          { article: '-', categorie: 'Délits', infraction: 'Transport marchandises illégales (Go-Fast)', amende: '33 850 $', prison: '15 u.' },
+          { article: '-', categorie: 'Délits', infraction: 'Trouble à l\'ordre public', amende: '2 000 $', prison: '15 u.' },
+          { article: '-', categorie: 'Routier', infraction: 'Usage abusif du klaxon', amende: '1 250 $', prison: '5 u.' },
+          { article: '-', categorie: 'Délits', infraction: 'Usurpation d\'identité', amende: '10 700 $', prison: '20 u.' },
+          { article: '-', categorie: 'Routier', infraction: 'Véhicule endommagé / Non conforme', amende: '350 $', prison: '10 u.' },
+          { article: '-', categorie: 'Crimes', infraction: 'Vente d\'armes', amende: '1 500 000 $', prison: '40 u.' },
+          { article: '-', categorie: 'Crimes', infraction: 'Vente Coque', amende: '5 980 $', prison: '15 u.' },
+          { article: '-', categorie: 'Crimes', infraction: 'Vente de Meth', amende: '3 580 $', prison: '15 u.' },
+          { article: 'LC 136', categorie: 'Crimes', infraction: 'Vente de Weed', amende: '2 580 $', prison: '15 u.' },
+          { article: 'LC 18', categorie: 'Délits', infraction: 'Violation de propriété privée', amende: '1 500 $', prison: '15 u.' },
+          { article: '-', categorie: 'Délits', infraction: 'Violences verbales', amende: '1 275 $', prison: '15 u.' }
+        ],
+
+        onLogin() {
+            if (this.identifier === 'admin' && this.password === 'admin') {
+                this.isLogged = true;
+                this.loginError = '';
+            } else {
+                this.loginError = 'Matricule ou mot de passe incorrect.';
+            }
+        },
+
+        onLogin() {
+            if (this.identifier === '07' && this.password === '125896') {
+                this.isLogged = true;
+                this.loginError = '';
+            } else {
+                this.loginError = 'Matricule ou mot de passe incorrect.';
+            }
+        },
+
+        addUser() {
+            if (!this.newUser.matricule || !this.newUser.nom) return;
+            this.users.push({
+                id: Date.now(),
+                ...this.newUser,
+                enService: false
+            });
+            this.newUser = { matricule: '', nom: '', grade: 'Cadet' };
+            this.activeModal = null;
+        },
+
+        addCasier() {
+            if (!this.newCasier.nom || !this.newCasier.prenom) return;
+            this.casiers.push({
+                id: Date.now(),
+                nom: this.newCasier.nom,
+                prenom: this.newCasier.prenom,
+                photoUrl: this.newCasier.photoUrl || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=200&h=200&q=80',
+                notes: this.newCasier.notes || 'Aucune note pour le moment.',
+                dateCreation: new Date().toLocaleDateString('fr-FR')
+            });
+            this.newCasier = { nom: '', prenom: '', photoUrl: '', notes: '' };
+            this.activeModal = null;
+        },
+
+        updateCasierNotes() {
+            if (!this.newNoteText.trim()) return;
+            const dateStr = new Date().toLocaleDateString('fr-FR');
+            this.selectedCasier.notes += `\n\n[${dateStr}] ${this.newNoteText}`;
+            this.newNoteText = '';
+        },
+
+        get filteredUsers() {
+            const q = this.searchUser.toLowerCase();
+            return this.users.filter(u =>
+                u.nom.toLowerCase().includes(q) ||
+                u.matricule.toLowerCase().includes(q) ||
+                u.grade.toLowerCase().includes(q)
+            );
+        },
+
+        get filteredCasiers() {
+            const q = this.searchCasier.toLowerCase();
+            return this.casiers.filter(c =>
+                c.nom.toLowerCase().includes(q) ||
+                c.prenom.toLowerCase().includes(q)
+            );
+        },
+
+        get filteredPenal() {
+            const q = this.searchPenal.toLowerCase();
+            return this.codePenal.filter(c =>
+                c.infraction.toLowerCase().includes(q) ||
+                c.categorie.toLowerCase().includes(q) ||
+                c.article.toLowerCase().includes(q)
+            );
+        }
+      }">
+
+    <div x-show="!isLogged" class="min-h-screen bg-slate-950 p-4 flex items-center justify-center">
+    <div class="w-full max-w-md bg-slate-900 rounded-[2rem] shadow-2xl border border-blue-900/50 overflow-hidden">
+        <div class="bg-gradient-to-r from-blue-900 to-indigo-950 p-8 text-white text-center border-b border-blue-900/50">
+            
+            <div class="mx-auto w-24 h-24 mb-4 flex items-center justify-center">
+                <img src="https://i.postimg.cc/tYxjJWGD/Seal-of-Los-Santos-Police-Departement2-removebg-preview.png" 
+                     alt="Logo LSPD" 
+                     class="w-full h-full object-contain">
+            </div>
+
+            <h1 class="text-2xl font-bold tracking-wider">LSPD INTRANET</h1>
+            <p class="text-xs text-blue-300 uppercase font-semibold mt-1">Los Santos Police Department</p>
+        </div>
+        
+        <div class="p-6 space-y-4 bg-slate-900/50">
+            <div class="space-y-2">
+                <label class="text-sm font-medium text-slate-300">Identifiant (Matricule)</label>
+                <input type="text" x-model="identifier" placeholder="admin" class="w-full bg-slate-950 border border-slate-800 text-white px-3 py-2 rounded-xl focus:outline-none focus:border-blue-500 text-sm">
+            </div>
+            <div class="space-y-2">
+                <label class="text-sm font-medium text-slate-300">Mot de passe</label>
+                <input type="password" x-model="password" placeholder="admin" class="w-full bg-slate-950 border border-slate-800 text-white px-3 py-2 rounded-xl focus:outline-none focus:border-blue-500 text-sm" @keyup.enter="onLogin">
+            </div>
+            <button @click="onLogin" class="w-full rounded-xl bg-blue-700 text-white py-2.5 text-sm font-bold uppercase tracking-wider hover:bg-blue-600 transition shadow-lg shadow-blue-900/20">S'authentifier</button>
+            <p x-show="loginError" x-text="loginError" class="text-sm text-red-400 font-medium text-center" style="display: none;"></p>
+        </div>
+    </div>
+</div>
+
+    <div x-show="isLogged" style="display: none;" class="flex flex-col min-h-screen bg-slate-950">
+        
+        <header class="bg-slate-900 border-b border-blue-900/40 sticky top-0 z-20">
+            <div class="max-w-7xl mx-auto px-4 md:px-8 py-4 flex flex-col sm:flex-row items-center justify-between gap-4">
+<div class="flex items-center gap-3">
+    <img src="https://i.postimg.cc/tYxjJWGD/Seal-of-Los-Santos-Police-Departement2-removebg-preview.png" 
+         alt="Logo LSPD" 
+         class="h-14 w-auto object-contain">
+         
+    <div>
+        <h1 class="text-lg font-bold tracking-wide text-white flex items-center gap-2">LSPD <span class="text-xs bg-blue-950 border border-blue-800 text-blue-400 font-normal px-2 py-0.5 rounded-md">MDT MMT FA</span></h1>
+        <p class="text-xs text-slate-400">Base de données et procédures internes</p>
+    </div>
+</div>
+                <nav class="flex items-center bg-slate-950 p-1 rounded-xl border border-slate-800 gap-1 overflow-x-auto">
+                    <button @click="currentTab = 'radio'" :class="currentTab === 'radio' ? 'bg-blue-700 text-white' : 'text-slate-400 hover:text-white'" class="px-3 py-1.5 rounded-lg text-xs font-semibold transition whitespace-nowrap">Codes Radio</button>
+                    <button @click="currentTab = 'procedures'" :class="currentTab === 'procedures' ? 'bg-blue-700 text-white' : 'text-slate-400 hover:text-white'" class="px-3 py-1.5 rounded-lg text-xs font-semibold transition whitespace-nowrap">Procédures</button>
+                    <button @click="currentTab = 'penal'" :class="currentTab === 'penal' ? 'bg-blue-700 text-white' : 'text-slate-400 hover:text-white'" class="px-3 py-1.5 rounded-lg text-xs font-semibold transition whitespace-nowrap">Code Pénal</button>
+                </nav>
+
+                <button @click="isLogged = false" class="inline-flex items-center justify-center rounded-xl border border-slate-800 bg-slate-900 px-3 py-1.5 text-xs font-medium text-slate-300 hover:bg-slate-800 transition">
+                    Déconnexion
+                </button>
+            </div>
+        </header>
+
+        <main class="max-w-7xl mx-auto px-4 md:px-8 py-6 w-full flex-grow">
+            
+            <div x-show="currentTab === 'dashboard'" class="space-y-6" style="display: none;">
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    <div class="bg-slate-900 border border-slate-800 p-4 rounded-xl">
+                        <p class="text-xs text-slate-400 uppercase tracking-wider">Total Effectifs</p>
+                        <p class="text-2xl font-bold text-white mt-1" x-text="users.length"></p>
+                    </div>
+                    <div class="bg-slate-900 border border-slate-800 p-4 rounded-xl flex items-center justify-between">
+                        <div>
+                            <p class="text-xs text-slate-400 uppercase tracking-wider">Actions</p>
+                            <button @click="activeModal = 'addUser'" class="mt-1 bg-blue-700 hover:bg-blue-600 text-white text-xs font-bold px-3 py-1.5 rounded-lg transition">+ Ajouter Agent</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden shadow-xl">
+                    <div class="p-4 border-b border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                        <h2 class="text-md font-bold tracking-wide uppercase text-blue-400">Registre des Matricules actifs</h2>
+                        <input type="text" x-model="searchUser" placeholder="Filtrer par matricule, nom..." class="bg-slate-950 border border-slate-800 text-white rounded-xl px-3 py-1.5 text-xs w-full sm:w-64 focus:outline-none focus:border-blue-500">
+                    </div>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-sm text-left">
+                            <thead class="bg-slate-950/50 text-slate-400 text-xs uppercase border-b border-slate-800">
+                                <tr>
+                                    <th class="py-3 px-6">Matricule</th>
+                                    <th class="py-3 px-6">Nom de l'agent</th>
+                                    <th class="py-3 px-6">Grade</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-slate-800">
+                                <template x-for="user in filteredUsers" :key="user.id">
+                                    <tr class="hover:bg-slate-800/40 transition">
+                                        <td class="py-3 px-6 font-mono text-blue-400 font-bold" x-text="user.matricule"></td>
+                                        <td class="py-3 px-6 font-medium text-white" x-text="user.nom"></td>
+                                        <td class="py-3 px-6 text-slate-300" x-text="user.grade"></td>
+                                        <td class="py-3 px-6">
+                                        </td>
+                                    </tr>
+                                </template>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <div x-show="currentTab === 'radio'" class="grid grid-cols-1 md:grid-cols-3 gap-6" style="display: none;">
+                <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6 space-y-4 md:col-span-2">
+                    <h2 class="text-md font-bold text-blue-400 uppercase tracking-wider border-b border-slate-800 pb-2">Base de données des Ten-Codes (LSPD)</h2>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-2 text-sm max-h-[500px] overflow-y-auto pr-2">
+                        <div class="flex items-center justify-between border-b border-slate-800/50 py-1.5"><span class="font-mono text-blue-400 font-bold">10-1</span> <span class="text-slate-300 text-right text-xs">Radio défectueuse</span></div>
+                        <div class="flex items-center justify-between border-b border-slate-800/50 py-1.5"><span class="font-mono text-blue-400 font-bold">10-2</span> <span class="text-slate-300 text-right text-xs">Signal clair</span></div>
+                        <div class="flex items-center justify-between border-b border-slate-800/50 py-1.5"><span class="font-mono text-blue-400 font-bold">10-3</span> <span class="text-slate-300 text-right text-xs">Fin de transmission</span></div>
+                        <div class="flex items-center justify-between border-b border-slate-800/50 py-1.5"><span class="font-mono text-blue-400 font-bold">10-4</span> <span class="text-slate-300 text-right text-xs">Affirmatif</span></div>
+                        <div class="flex items-center justify-between border-b border-slate-800/50 py-1.5"><span class="font-mono text-blue-400 font-bold">10-5</span> <span class="text-slate-300 text-right text-xs">Négatif</span></div>
+                        <div class="flex items-center justify-between border-b border-slate-800/50 py-1.5"><span class="font-mono text-blue-400 font-bold">10-6</span> <span class="text-slate-300 text-right text-xs">Occupé (sauf urgence)</span></div>
+                        <div class="flex items-center justify-between border-b border-slate-800/50 py-1.5"><span class="font-mono text-blue-400 font-bold">10-7</span> <span class="text-slate-300 text-right text-xs">Hors service temporaire</span></div>
+                        <div class="flex items-center justify-between border-b border-slate-800/50 py-1.5"><span class="font-mono text-blue-400 font-bold">10-8</span> <span class="text-slate-300 text-right text-xs">Prise de service</span></div>
+                        <div class="flex items-center justify-between border-b border-slate-800/50 py-1.5"><span class="font-mono text-blue-400 font-bold">10-9</span> <span class="text-slate-300 text-right text-xs">Répéter le message</span></div>
+                        <div class="flex items-center justify-between border-b border-slate-800/50 py-1.5"><span class="font-mono text-blue-400 font-bold">10-10</span> <span class="text-slate-300 text-right text-xs">Fin de service</span></div>
+                        <div class="flex items-center justify-between border-b border-slate-800/50 py-1.5"><span class="font-mono text-blue-400 font-bold">10-14</span> <span class="text-slate-300 text-right text-xs">Escorte ou Convoi</span></div>
+                        <div class="flex items-center justify-between border-b border-slate-800/50 py-1.5"><span class="font-mono text-blue-400 font-bold">10-15</span> <span class="text-slate-300 text-right text-xs">Transport prisonnier</span></div>
+                        <div class="flex items-center justify-between border-b border-slate-800/50 py-1.5"><span class="font-mono text-blue-400 font-bold">10-17</span> <span class="text-slate-300 text-right text-xs">Entretien Véhicule</span></div>
+                        <div class="flex items-center justify-between border-b border-slate-800/50 py-1.5"><span class="font-mono text-blue-400 font-bold">10-19</span> <span class="text-slate-300 text-right text-xs">En route vers...</span></div>
+                        <div class="flex items-center justify-between border-b border-slate-800/50 py-1.5"><span class="font-mono text-blue-400 font-bold">10-20</span> <span class="text-slate-300 text-right text-xs">Localisation / Position</span></div>
+                        <div class="flex items-center justify-between border-b border-slate-800/50 py-1.5"><span class="font-mono text-blue-400 font-bold">10-22</span> <span class="text-slate-300 text-right text-xs">Annuler dernier message</span></div>
+                        <div class="flex items-center justify-between border-b border-slate-800/50 py-1.5"><span class="font-mono text-blue-400 font-bold">10-23</span> <span class="text-slate-300 text-right text-xs">Standby / Attente dispatch</span></div>
+                        <div class="flex items-center justify-between border-b border-slate-800/50 py-1.5"><span class="font-mono text-blue-400 font-bold">10-27</span> <span class="text-slate-300 text-right text-xs">Vérification Permis</span></div>
+                        <div class="flex items-center justify-between border-b border-slate-800/50 py-1.5"><span class="font-mono text-blue-400 font-bold">10-28</span> <span class="text-slate-300 text-right text-xs">Vérification Plaque</span></div>
+                        <div class="flex items-center justify-between border-b border-slate-800/50 py-1.5"><span class="font-mono text-blue-400 font-bold">10-29</span> <span class="text-slate-300 text-right text-xs">Individu recherché</span></div>
+                        <div class="flex items-center justify-between border-b border-slate-800/50 py-1.5"><span class="font-mono text-blue-400 font-bold">10-30</span> <span class="text-slate-300 text-right text-xs">Bagarre ou Rix</span></div>
+                        <div class="flex items-center justify-between border-b border-slate-800/50 py-1.5"><span class="font-mono text-blue-400 font-bold">10-31</span> <span class="text-slate-300 text-right text-xs">Tirs d'armes à feu</span></div>
+                        <div class="flex items-center justify-between border-b border-slate-800/50 py-1.5"><span class="font-mono text-blue-400 font-bold">10-35</span> <span class="text-slate-300 text-right text-xs">Demande de renfort (Position)</span></div>
+                        <div class="flex items-center justify-between border-b border-slate-800/50 py-1.5"><span class="font-mono text-blue-400 font-bold">10-37</span> <span class="text-slate-300 text-right text-xs">Braquage de Train</span></div>
+                        <div class="flex items-center justify-between border-b border-slate-800/50 py-1.5"><span class="font-mono text-blue-400 font-bold">10-38</span> <span class="text-slate-300 text-right text-xs">Braquage d'ATM</span></div>
+                        <div class="flex items-center justify-between border-b border-slate-800/50 py-1.5"><span class="font-mono text-blue-400 font-bold">10-40</span> <span class="text-slate-300 text-right text-xs">Braquage de supérette</span></div>
+                        <div class="flex items-center justify-between border-b border-slate-800/50 py-1.5"><span class="font-mono text-blue-400 font-bold">10-41</span> <span class="text-slate-300 text-right text-xs">Début de patrouille</span></div>
+                        <div class="flex items-center justify-between border-b border-slate-800/50 py-1.5"><span class="font-mono text-blue-400 font-bold">10-42</span> <span class="text-slate-300 text-right text-xs">Fin de patrouille</span></div>
+                        <div class="flex items-center justify-between border-b border-slate-800/50 py-1.5"><span class="font-mono text-blue-400 font-bold">10-45</span> <span class="text-slate-300 text-right text-xs">Demande d'informations</span></div>
+                        <div class="flex items-center justify-between border-b border-slate-800/50 py-1.5"><span class="font-mono text-blue-400 font-bold">10-48</span> <span class="text-slate-300 text-right text-xs">Contrôle routier</span></div>
+                        <div class="flex items-center justify-between border-b border-slate-800/50 py-1.5"><span class="font-mono text-blue-400 font-bold">10-50</span> <span class="text-slate-300 text-right text-xs">Accident de la route</span></div>
+                        <div class="flex items-center justify-between border-b border-slate-800/50 py-1.5"><span class="font-mono text-blue-400 font-bold">10-51</span> <span class="text-slate-300 text-right text-xs">Demande dépanneuse</span></div>
+                        <div class="flex items-center justify-between border-b border-slate-800/50 py-1.5"><span class="font-mono text-blue-400 font-bold">10-52</span> <span class="text-slate-300 text-right text-xs">Demande ambulance</span></div>
+                        <div class="flex items-center justify-between border-b border-slate-800/50 py-1.5"><span class="font-mono text-blue-400 font-bold">10-56</span> <span class="text-slate-300 text-right text-xs">Refus d'obtempérer</span></div>
+                        <div class="flex items-center justify-between border-b border-slate-800/50 py-1.5"><span class="font-mono text-blue-400 font-bold">10-57</span> <span class="text-slate-300 text-right text-xs">Délit de fuite</span></div>
+                        <div class="flex items-center justify-between border-b border-slate-800/50 py-1.5"><span class="font-mono text-blue-400 font-bold">10-58</span> <span class="text-slate-300 text-right text-xs">Course poursuite</span></div>
+                        <div class="flex items-center justify-between border-b border-slate-800/50 py-1.5"><span class="font-mono text-blue-400 font-bold">10-59</span> <span class="text-slate-300 text-right text-xs">Vol de véhicule</span></div>
+                        <div class="flex items-center justify-between border-b border-slate-800/50 py-1.5"><span class="font-mono text-blue-400 font-bold">10-60</span> <span class="text-slate-300 text-right text-xs">Vente de drogue</span></div>
+                        <div class="flex items-center justify-between border-b border-slate-800/50 py-1.5"><span class="font-mono text-blue-400 font-bold">10-91</span> <span class="text-slate-300 text-right text-xs">Braquage de banque</span></div>
+                        <div class="flex items-center justify-between border-b border-slate-800/50 py-1.5"><span class="font-mono text-blue-400 font-bold">10-92</span> <span class="text-slate-300 text-right text-xs">Braquage bijouterie</span></div>
+                        <div class="flex items-center justify-between py-1.5"><span class="font-mono text-blue-400 font-bold">10-93</span> <span class="text-slate-300 text-right text-xs">Prise d'otage</span></div>
+                        <div class="flex items-center justify-between py-1.5 bg-rose-950/30 px-2 rounded border border-rose-900/50"><span class="font-mono text-rose-400 font-bold">10-99</span> <span class="text-rose-300 text-right text-xs font-semibold">OFFICIER EN DANGER !</span></div>
+                    </div>
+                </div>
+
+                <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6 space-y-4">
+                    <h2 class="text-md font-bold text-blue-400 uppercase tracking-wider border-b border-slate-800 pb-2">Codes d'Intervention</h2>
+                    <div class="space-y-3">
+                        <div class="p-3 bg-slate-950 rounded-xl border border-slate-800">
+                            <p class="font-bold text-slate-300 text-xs uppercase tracking-wide">Code 1</p>
+                            <p class="text-xs text-slate-400 mt-1">Déplacement normal. Respect total du code de la route. Pas de gyrophares ni sirènes.</p>
+                        </div>
+                        <div class="p-3 bg-slate-950 rounded-xl border border-amber-900/40">
+                            <p class="font-bold text-amber-400 text-xs uppercase tracking-wide">Code 2 (Urgence secondaire)</p>
+                            <p class="text-xs text-slate-400 mt-1">Déplacement rapide pour intervention. Gyrophares activés, sirènes uniquement aux intersections.</p>
+                        </div>
+                        <div class="p-3 bg-slate-950 rounded-xl border border-rose-900/40">
+                            <p class="font-bold text-rose-400 text-xs uppercase tracking-wide">Code 3 (Urgence absolue)</p>
+                            <p class="text-xs text-slate-400 mt-1">Danger immédiat / Crime en cours. Gyrophares ET sirènes hurlantes en continu. Priorité absolue.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div x-show="currentTab === 'procedures'" class="space-y-6" style="display: none;">
+                <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6 space-y-3">
+                    <div class="flex items-center gap-2 border-b border-slate-800 pb-2">
+                        <span class="p-1 rounded bg-amber-500/10 text-amber-400 text-xs font-bold uppercase">Important</span>
+                        <h2 class="text-md font-bold text-white uppercase tracking-wider">Droits Miranda</h2>
+                    </div>
+                    <p class="text-sm bg-slate-950 p-4 rounded-xl text-amber-100 font-mono italic leading-relaxed border-l-4 border-amber-500">
+                        Vous avez le droit de garder le silence. Si vous renoncez à ce droit, tout ce que vous direz pourra et sera utilisé contre vous devant une cour de justice. Vous avez le droit à un avocat et d'avoir un avocat présent lors de l'interrogatoire. Si vous n'en avez pas les moyens, un avocat vous sera commis d’office. Durant chaque interrogatoire, vous pourrez décider à n'importe quel moment d'exercer ces droits, de ne répondre à aucune question ou de ne faire aucune déposition. Avez-vous compris vos droits ?"
+                    </p>
+                    <p class="text-xs text-slate-400">Note : Les droits Miranda doivent obligatoirement être énoncés au suspect durant son arrestation ou avant son interrogatoire sous peine de nullité de la procédure.</p>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6 space-y-3">
+                        <h3 class="text-sm font-bold text-blue-400 uppercase tracking-wide">Contrôle routier standard (Traffic Stop)</h3>
+                        <ul class="list-decimal list-inside text-xs text-slate-300 space-y-2 leading-relaxed">
+                            <li>Annoncer le 10-20 et le modèle/plaque du véhicule à la radio avant l'arrêt.</li>
+                            <li>Se positionner légèrement en décalé derrière le véhicule (sécurité de l'agent).</li>
+                            <li>Ordonner au conducteur de couper son moteur et poser ses mains sur le volant.</li>
+                            <li>Demander : Permis de conduire, papiers du véhicule (carte grise).</li>
+                            <li>Vérifier les antécédents au MDC avant de dresser l'amende ou de laisser repartir.</li>
+                        </ul>
+                    </div>
+                    
+                    <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6 space-y-3">
+                        <h3 class="text-sm font-bold text-blue-400 uppercase tracking-wide">Usage de la force légitime</h3>
+                        <ul class="list-disc list-inside text-xs text-slate-300 space-y-2 leading-relaxed">
+                            <li><span class="text-blue-400 font-semibold">Niveau 1 :</span> Présence physique et injonctions verbales claires.</li>
+                            <li><span class="text-blue-400 font-semibold">Niveau 2 :</span> Force physique non létale (Taser, Matraque, Gaz) en cas de résistance ou fuite à pied.</li>
+                            <li><span class="text-rose-400 font-semibold">Niveau 3 :</span> Force létale (Arme à feu) UNIQUEMENT si vie d'un citoyen ou d'un agent en danger immédiat.</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <div x-show="currentTab === 'casiers'" class="space-y-6" style="display: none;">
+                <div class="p-4 bg-slate-900 border border-slate-800 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                    <div>
+                        <h2 class="text-md font-bold tracking-wide uppercase text-blue-400">Index des Casiers Judiciaires</h2>
+                        <p class="text-xs text-slate-400 mt-0.5">Recherchez, créez et mettez à jour les fiches de sûreté des citoyens.</p>
+                    </div>
+                    <div class="flex items-center gap-2 w-full sm:w-auto">
+                        <input type="text" x-model="searchCasier" placeholder="Rechercher par Nom ou Prénom..." class="bg-slate-950 border border-slate-800 text-white rounded-xl px-3 py-1.5 text-xs w-full sm:w-64 focus:outline-none focus:border-blue-500">
+                        <button @click="activeModal = 'addCasier'" class="bg-blue-700 hover:bg-blue-600 text-white text-xs font-bold px-4 py-2 rounded-xl transition whitespace-nowrap">+ Créer une Fiche</button>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    <template x-for="casier in filteredCasiers" :key="casier.id">
+                        <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4 flex flex-col justify-between hover:border-blue-500/40 transition shadow-xl">
+                            <div class="flex gap-4 items-start">
+                                <img :src="casier.photoUrl" alt="Photo suspect" class="w-20 h-20 rounded-xl object-cover border border-slate-800 bg-slate-950 shrink-0">
+                                <div class="space-y-1 min-w-0 flex-1">
+                                    <p class="text-white font-bold text-base truncate" x-text="casier.prenom + ' ' + casier.nom"></p>
+                                    <p class="text-[10px] text-slate-400">Dossier créé le <span x-text="casier.dateCreation"></span></p>
+                                    <p class="text-xs text-slate-300 line-clamp-3 mt-2 whitespace-pre-line" x-text="casier.notes"></p>
+                                </div>
+                            </div>
+                            <div class="mt-4 pt-3 border-t border-slate-800 flex justify-end">
+                                <button @click="selectedCasier = casier; activeModal = 'viewCasier'" class="text-xs font-bold bg-slate-950 border border-slate-800 hover:bg-slate-800 text-blue-400 px-3 py-1.5 rounded-lg transition">Ouvrir le dossier</button>
+                            </div>
+                        </div>
+                    </template>
+                    <div x-show="filteredCasiers.length === 0" class="col-span-full bg-slate-900 border border-slate-800 p-8 rounded-2xl text-center text-slate-500 text-xs">
+                        Aucun individu correspondant trouvé dans le système informatique.
+                    </div>
+                </div>
+            </div>
+
+            <div x-show="currentTab === 'penal'" class="space-y-6">
+                <div class="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden shadow-xl">
+                    <div class="p-4 border-b border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                        <div>
+                            <h2 class="text-md font-bold tracking-wide uppercase text-blue-400">Tarificateur Officiel des Infractions, Délits & Crimes</h2>
+                            <p class="text-xs text-slate-400 mt-0.5">Base de données complète — Tri et recherche instantanée</p>
+                        </div>
+                        <input type="text" x-model="searchPenal" placeholder="Rechercher par article, loi (ex: Vente, LC 3, Vol...)" class="bg-slate-950 border border-slate-800 text-white rounded-xl px-3 py-1.5 text-xs w-full sm:w-80 focus:outline-none focus:border-blue-500">
+                    </div>
+                    
+                    <div class="overflow-x-auto max-h-[600px] overflow-y-auto">
+                        <table class="w-full text-sm text-left">
+                            <thead class="bg-slate-950/50 text-slate-400 text-xs uppercase border-b border-slate-800 sticky top-0 z-10">
+                                <tr>
+                                    <th class="py-3 px-4">Article</th>
+                                    <th class="py-3 px-4">Catégorie</th>
+                                    <th class="py-3 px-6">Nature de l'infraction</th>
+                                    <th class="py-3 px-4 text-amber-400">Amende</th>
+                                    <th class="py-3 px-4 text-rose-400">Peine / u.</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-slate-800 text-xs sm:text-sm">
+                                <template x-for="item in filteredPenal" :key="item.infraction + item.article">
+                                    <tr class="hover:bg-slate-800/40 transition">
+                                        <td class="py-3 px-4 font-mono text-slate-400 font-semibold" x-text="item.article"></td>
+                                        <td class="py-3 px-4">
+                                            <span :class="{
+                                                'bg-blue-950 border-blue-800 text-blue-400': item.categorie === 'Routier',
+                                                'bg-amber-950 border-amber-800 text-amber-400': item.categorie === 'Délits',
+                                                'bg-rose-950 border-rose-800 text-rose-400': item.categorie === 'Crimes'
+                                            }" class="border px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider" x-text="item.categorie"></span>
+                                        </td>
+                                        <td class="py-3 px-6 text-white font-medium" x-text="item.infraction"></td>
+                                        <td class="py-3 px-4 text-amber-400 font-mono font-bold" x-text="item.amende"></td>
+                                        <td class="py-3 px-4 text-rose-400 font-mono font-bold" x-text="item.prison"></td>
+                                    </tr>
+                                </template>
+                                <tr x-show="filteredPenal.length === 0">
+                                    <td colspan="5" class="py-6 text-center text-slate-500 text-xs">Aucune infraction trouvée pour cette recherche.</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div class="bg-slate-900 border border-slate-800 p-4 rounded-xl space-y-2">
+                        <h4 class="text-xs font-bold uppercase tracking-wider text-amber-400">⚖️ Optimisez le suivi de vos infractions</h4>
+                        <p class="text-xs text-slate-400 leading-relaxed">
+                        Un suivi rigoureux du montant de vos amendes est essentiel pour éviter les coûts supplémentaires. Notre plateforme vous permet de répertorier, vérifier et suivre chaque montant instantanément pour une gestion administrative zéro défaut.                        </p>
+                    </div>
+                    <div class="bg-slate-900 border border-slate-800 p-4 rounded-xl space-y-2">
+                        <h4 class="text-xs font-bold uppercase tracking-wider text-rose-400">💡 Besoin d'aide pour vos amendes ?</h4>
+                        <p class="text-xs text-slate-400 leading-relaxed">
+                        Assurez-vous de bien vérifier et suivre le montant de vos contraventions. Une question ou une contestation ? Contactez un haut gradé pour obtenir une assistance prioritaire et clarifier votre situation.                        </p>
+                    </div>
+                </div>
+            </div>
+
+        </main>
+    </div>
+
+    <div x-show="activeModal === 'addUser'" class="fixed inset-0 bg-black/60 backdrop-blur-xs z-50 flex items-center justify-center p-4" style="display: none;">
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4" @click.away="activeModal = null">
+            <h3 class="text-base font-bold text-white uppercase tracking-wide">Intégrer un nouvel Agent</h3>
+            <div class="space-y-3">
+                <input type="text" x-model="newUser.matricule" placeholder="Matricule (ex: O-24)" class="w-full bg-slate-950 border border-slate-800 text-white px-3 py-2 rounded-xl focus:outline-none focus:border-blue-500 text-sm">
+                <input type="text" x-model="newUser.nom" placeholder="Nom complet (ex: James Vance)" class="w-full bg-slate-950 border border-slate-800 text-white px-3 py-2 rounded-xl focus:outline-none focus:border-blue-500 text-sm">
+                <select x-model="newUser.grade" class="w-full bg-slate-950 border border-slate-800 text-white rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-blue-500">
+                    <template x-for="g in grades" :key="g">
+                        <option x-text="g" :value="g"></option>
+                    </template>
+                </select>
+            </div>
+            <div class="flex justify-end gap-2 pt-2 text-xs">
+                <button @click="activeModal = null" class="px-3 py-2 font-medium border border-slate-800 rounded-xl hover:bg-slate-800 text-slate-300 transition">Annuler</button>
+                <button @click="addUser" class="px-4 py-2 font-bold bg-blue-700 text-white rounded-xl hover:bg-blue-600 transition">Valider l'entrée</button>
+            </div>
+        </div>
+    </div>
+
+    <div x-show="activeModal === 'addCasier'" class="fixed inset-0 bg-black/60 backdrop-blur-xs z-50 flex items-center justify-center p-4" style="display: none;">
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4" @click.away="activeModal = null">
+            <h3 class="text-base font-bold text-white uppercase tracking-wide">Créer un Casier Judiciaire</h3>
+            <div class="space-y-3">
+                <div class="grid grid-cols-2 gap-2">
+                    <input type="text" x-model="newCasier.nom" placeholder="Nom de famille" class="w-full bg-slate-950 border border-slate-800 text-white px-3 py-2 rounded-xl focus:outline-none focus:border-blue-500 text-sm">
+                    <input type="text" x-model="newCasier.prenom" placeholder="Prénom" class="w-full bg-slate-950 border border-slate-800 text-white px-3 py-2 rounded-xl focus:outline-none focus:border-blue-500 text-sm">
+                </div>
+                <input type="text" x-model="newCasier.photoUrl" placeholder="Lien URL de la Photo de l'individu" class="w-full bg-slate-950 border border-slate-800 text-white px-3 py-2 rounded-xl focus:outline-none focus:border-blue-500 text-sm">
+                <textarea x-model="newCasier.notes" placeholder="Notes initiales, signes distinctifs, infractions notables..." rows="4" class="w-full bg-slate-950 border border-slate-800 text-white px-3 py-2 rounded-xl focus:outline-none focus:border-blue-500 text-sm resize-none"></textarea>
+            </div>
+            <div class="flex justify-end gap-2 pt-2 text-xs">
+                <button @click="activeModal = null" class="px-3 py-2 font-medium border border-slate-800 rounded-xl hover:bg-slate-800 text-slate-300 transition">Annuler</button>
+                <button @click="addCasier" class="px-4 py-2 font-bold bg-blue-700 text-white rounded-xl hover:bg-blue-600 transition">Créer le dossier</button>
+            </div>
+        </div>
+    </div>
+
+    <div x-show="activeModal === 'viewCasier'" class="fixed inset-0 bg-black/60 backdrop-blur-xs z-50 flex items-center justify-center p-4" style="display: none;">
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl max-w-2xl w-full p-6 shadow-2xl space-y-4" @click.away="activeModal = null" x-data="{ changePhoto: false, tempUrl: '' }">
+            <template x-if="selectedCasier">
+                <div class="space-y-4">
+                    <div class="flex flex-col sm:flex-row gap-4 items-start border-b border-slate-800 pb-4">
+                        <div class="flex flex-col items-center gap-2 shrink-0">
+                            <img :src="selectedCasier.photoUrl" alt="Profil suspect" class="w-28 h-28 rounded-xl object-cover border border-slate-700 bg-slate-950 shadow-md">
+                            <button @click="changePhoto = !changePhoto; tempUrl = selectedCasier.photoUrl" class="text-[10px] text-blue-400 hover:underline">Modifier la photo</button>
+                        </div>
+                        <div class="space-y-1 flex-grow w-full">
+                            <h3 class="text-xl font-bold text-white uppercase tracking-wide" x-text="selectedCasier.prenom + ' ' + selectedCasier.nom"></h3>
+                            <p class="text-xs text-slate-400">Enregistré au fichier central le <span x-text="selectedCasier.dateCreation"></span></p>
+                            
+                            <div x-show="changePhoto" class="flex gap-2 mt-2" style="display: none;">
+                                <input type="text" x-model="tempUrl" placeholder="Nouveau lien URL photo" class="bg-slate-950 border border-slate-800 text-white rounded-lg px-2 py-1 text-xs flex-grow focus:outline-none focus:border-blue-500">
+                                <button @click="selectedCasier.photoUrl = tempUrl; changePhoto = false" class="bg-blue-700 text-white text-[10px] font-bold px-2.5 py-1 rounded-lg hover:bg-blue-600 transition">Valider</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="space-y-1.5">
+                        <label class="text-xs font-bold text-slate-400 uppercase tracking-wider">Rapports & Mentions Légales :</label>
+                        <div class="bg-slate-950 p-4 rounded-xl border border-slate-800 max-h-48 overflow-y-auto text-xs text-slate-300 whitespace-pre-wrap leading-relaxed" x-text="selectedCasier.notes"></div>
+                    </div>
+
+                    <div class="space-y-2 pt-2 border-t border-slate-800">
+                        <label class="text-xs font-bold text-blue-400 uppercase tracking-wider">Ajouter un rapport d'infraction / Compléter le casier :</label>
+                        <textarea x-model="newNoteText" placeholder="Exemple : [08/06] Interpellation par L-01 pour excès de vitesse majeur et possession d'argent sale. Amende rédigée." rows="3" class="w-full bg-slate-950 border border-slate-800 text-white px-3 py-2 rounded-xl focus:outline-none focus:border-blue-500 text-xs resize-none"></textarea>
+                    </div>
+
+                    <div class="flex justify-end gap-2 text-xs pt-2">
+                        <button @click="activeModal = null; newNoteText = ''" class="px-4 py-2 font-medium border border-slate-800 rounded-xl hover:bg-slate-800 text-slate-300 transition">Fermer</button>
+                        <button @click="updateCasierNotes(); activeModal = null" class="px-4 py-2 font-bold bg-blue-700 text-white rounded-xl hover:bg-blue-600 transition">Enregistrer les modifications</button>
+                    </div>
+                </div>
+            </template>
+        </div>
+    </div>
+
+</body>
+</html>
